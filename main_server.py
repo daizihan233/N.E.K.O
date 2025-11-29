@@ -159,6 +159,50 @@ session_id = {}
 sync_process = {}
 # 每个角色的websocket操作锁，用于防止preserve/restore与cleanup()之间的竞争
 websocket_locks = {}
+# 活跃的WebSocket连接集合，用于广播消息
+active_websockets = set()
+
+# 全局函数，供hotkey_handler直接调用
+def broadcast_focus_request():
+    """
+    向所有客户端广播焦点请求
+    这个函数会被hotkey_handler直接调用
+    """
+    import asyncio
+    
+    async def send_focus_request():
+        message = json.dumps({"type": "focus_request"})
+        disconnected = set()
+        
+        # 向所有活跃的WebSocket连接发送焦点请求
+        for ws in active_websockets:
+            try:
+                # 检查连接状态
+                if hasattr(ws, 'client_state') and ws.client_state == ws.client_state.CONNECTED:
+                    await ws.send_text(message)
+            except Exception as e:
+                logger.warning(f"发送焦点请求失败: {e}")
+                disconnected.add(ws)
+        
+        # 清理断开的连接
+        for ws in disconnected:
+            if ws in active_websockets:
+                active_websockets.remove(ws)
+    
+    # 在事件循环中执行异步操作
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # 如果事件循环正在运行，使用create_task
+            loop.create_task(send_focus_request())
+        else:
+            # 如果事件循环没有运行，直接运行直到完成
+            loop.run_until_complete(send_focus_request())
+    except RuntimeError:
+        # 如果无法获取事件循环，创建新的
+        asyncio.run(send_focus_request())
+    except Exception as e:
+        logger.error(f"广播焦点请求时出错: {e}")
 # Global variables for character data (will be updated on reload)
 master_name = None
 her_name = None
@@ -914,6 +958,9 @@ async def websocket_endpoint(websocket: WebSocket, lanlan_name: str):
         session_id[lanlan_name] = this_session_id
     logger.info(f"⭐websocketWebSocket accepted: {websocket.client}, new session id: {session_id[lanlan_name]}, lanlan_name: {lanlan_name}")
     
+    # 添加到活跃的WebSocket连接集合
+    active_websockets.add(websocket)
+    
     # 立即设置websocket到session manager，以支持主动搭话
     # 注意：这里设置后，即使cleanup()被调用，websocket也会在start_session时重新设置
     if lanlan_name in session_manager:
@@ -974,6 +1021,9 @@ async def websocket_endpoint(websocket: WebSocket, lanlan_name: str):
             pass
     finally:
         logger.info(f"Cleaning up WebSocket resources: {websocket.client}")
+        # 从活跃的WebSocket连接集合中移除
+        if websocket in active_websockets:
+            active_websockets.remove(websocket)
         await session_manager[lanlan_name].cleanup()
         # 注意：cleanup() 会清空 websocket，但只在连接真正断开时调用
         # 如果连接还在，websocket应该保持设置
@@ -5001,6 +5051,21 @@ async def get_task_status():
         }, status_code=500)
 
 
+@app.post('/api/focus-app')
+async def focus_app_endpoint(request: Request):
+    """
+    处理快捷键触发的焦点请求，向前端广播焦点事件
+    这是hotkey_handler调用的API端点
+    """
+    try:
+        # 调用之前定义的broadcast_focus_request函数广播焦点请求
+        broadcast_focus_request()
+        logger.info("✅ 焦点请求已广播到所有客户端")
+        return JSONResponse({"success": True, "message": "Focus request broadcasted"}, status_code=200)
+    except Exception as e:
+        logger.error(f"💥 处理焦点请求时出错: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
 @app.post('/api/agent/admin/control')
 async def proxy_admin_control(payload):
     """Proxy admin control commands to tool server."""
@@ -5080,6 +5145,11 @@ if __name__ == "__main__":
         logger.info("收到浏览器关闭信号，正在关闭服务器...")
         os.kill(os.getpid(), signal.SIGTERM)
 
+    # 启动快捷键监听器
+    from utils import hotkey_handler
+    hotkey_handler.start_hotkey_listener()
+    logger.info("✅ 快捷键监听器已启动")
+    
     # 4) 启动服务器（阻塞，直到 server.should_exit=True）
     logger.info("--- Starting FastAPI Server ---")
     logger.info(f"Access UI at: http://127.0.0.1:{MAIN_SERVER_PORT}/{args.page}")

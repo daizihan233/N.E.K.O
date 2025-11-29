@@ -692,11 +692,18 @@ function init_app(){
     }
 
     async function startScreenSharing(){ // 分享屏幕，按钮on click
-        // 检查是否在录音状态
+        console.log('[屏幕分享] 尝试启动屏幕分享，当前录音状态:', isRecording);
+        // 如果未开启麦克风，提示用户并引导开启麦克风
         if (!isRecording) {
+            console.log('[屏幕分享] 无法启动屏幕分享 - 未开启麦克风');
             showStatusToast(window.t ? window.t('app.micRequired') : '请先开启麦克风录音！', 3000);
+            // 自动聚焦到麦克风按钮，提高用户体验
+            if (micButton) {
+                micButton.focus();
+            }
             return;
         }
+        console.log('[屏幕分享] 开始初始化屏幕分享流程...')
         
         try {
             // 初始化音频播放上下文
@@ -747,7 +754,10 @@ function init_app(){
             };
 
             // 获取麦克风流
-            if (!isRecording) showStatusToast(window.t ? window.t('app.micNotOpen') : '没开麦啊喂！', 3000);
+            if (!isRecording) {
+                console.log('[屏幕分享] 屏幕分享过程中检测到麦克风关闭');
+                showStatusToast(window.t ? window.t('app.micNotOpen') : '没开麦啊喂！', 3000);
+            }
           } catch (err) {
             console.error(isMobile() ? '摄像头访问失败:' : '屏幕共享失败:', err);
             console.error('启动失败 →', err);
