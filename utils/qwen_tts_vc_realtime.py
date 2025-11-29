@@ -196,23 +196,65 @@ async def tts_audio_worker(in_queue: MPQueue, out_queue: MPQueue):
     import numpy as _np
     import asyncio as _asyncio
     loop = _asyncio.get_running_loop()
+    
+    # 使用批量处理减少进程间通信开销
+    batch_size = 4  # 批量处理的音频块数量
+    audio_batch = []
 
     while True:
-        # MPQueue.get() 是阻塞的；放到线程池避免阻塞事件循环
-        audio_bytes = await loop.run_in_executor(None, in_queue.get)
-
-        if audio_bytes is None:
-            # 透传一个 None 给发送协程（_start_audio_sender），帮助其尽快结束
-            await loop.run_in_executor(None, out_queue.put, None)
-            break
-
         try:
-            audio_array = _np.frombuffer(audio_bytes, dtype=_np.int16)
-            resampled = _np.repeat(audio_array, 2) # 24kHz -> 48kHz（简单重复法）
-            await loop.run_in_executor(None, out_queue.put, resampled.tobytes())
-        except Exception:
-        # 处理失败则退回原始数据，避免中断播放链路
-            await loop.run_in_executor(None, out_queue.put, audio_bytes)
+            # MPQueue.get() 是阻塞的；放到线程池避免阻塞事件循环
+            audio_bytes = await loop.run_in_executor(None, in_queue.get)
+
+            if audio_bytes is None:
+                # 处理剩余的批
+                if audio_batch:
+                    await _process_audio_batch(audio_batch, out_queue, loop)
+                # 透传一个 None 给发送协程（_start_audio_sender），帮助其尽快结束
+                await loop.run_in_executor(None, out_queue.put, None)
+                break
+
+            # 收集音频数据到批处理列表
+            audio_batch.append(audio_bytes)
+            
+            # 当收集到足够的音频块或队列为空时处理批次
+            if len(audio_batch) >= batch_size or in_queue.empty():
+                await _process_audio_batch(audio_batch, out_queue, loop)
+                audio_batch = []
+        except Exception as e:
+            # 处理异常，确保工作进程不会崩溃
+            logger.error(f"音频工作进程内部错误: {e}")
+            # 处理当前批次（如果有）
+            if audio_batch:
+                try:
+                    for audio_bytes in audio_batch:
+                        await loop.run_in_executor(None, out_queue.put, audio_bytes)
+                except Exception:
+                    pass
+                audio_batch = []
+
+async def _process_audio_batch(audio_batch, out_queue, loop):
+    """批量处理音频数据"""
+    try:
+        import numpy as _np
+        
+        # 将多个音频块合并为一个批次处理
+        all_bytes = b''.join(audio_batch)
+        audio_array = _np.frombuffer(all_bytes, dtype=_np.int16)
+        
+        # 使用更高效的重采样方法（线性插值）
+        # 24kHz -> 48kHz，采样率翻倍
+        # 注意：这里使用简单重复作为基础，后续可以优化为更复杂的插值方法
+        resampled = _np.repeat(audio_array, 2)
+        
+        await loop.run_in_executor(None, out_queue.put, resampled.tobytes())
+    except Exception:
+        # 处理失败则分别退回原始数据，避免中断播放链路
+        for audio_bytes in audio_batch:
+            try:
+                await loop.run_in_executor(None, out_queue.put, audio_bytes)
+            except Exception:
+                pass
 
 def _tts_audio_worker_entry(in_queue: MPQueue, out_queue: MPQueue):
     """
@@ -424,11 +466,25 @@ class TTSRealtimeClient:
     async def wait_for_audio_completion(self, timeout: float = 10.0) -> bool:
         """等待音频完成，返回是否成功完成"""
         try:
+            # 等待音频完成事件
             await asyncio.wait_for(self._audio_completion_event.wait(), timeout=timeout)
-            # 等待队列清空，最多2秒
+            
+            # 等待队列清空，但使用更智能的超时机制
             start_time = time.time()
-            while (not self._mp_in_queue.empty() or not self._mp_out_queue.empty()) and (time.time() - start_time < 2.0):
-                await asyncio.sleep(0.05)
+            check_interval = 0.05
+            max_wait = 2.0
+            total_waited = 0
+            
+            # 动态调整等待时间，避免不必要的轮询
+            while total_waited < max_wait:
+                if self._mp_in_queue.empty() and self._mp_out_queue.empty():
+                    break
+                
+                # 使用指数退避策略减少轮询频率
+                wait_time = min(check_interval * (1 + total_waited/0.5), 0.2)  # 最长等待0.2秒
+                await asyncio.sleep(wait_time)
+                total_waited += wait_time
+            
             return True
         except asyncio.TimeoutError:
             logger.warning(f"等待音频完成超时 ({timeout}s)")

@@ -140,7 +140,7 @@ def get_preferred_model_path() -> Optional[str]:
 
 def validate_model_preferences(preferences: Dict[str, Any]) -> bool:
     """
-    验证模型偏好设置是否包含必要字段
+    验证模型偏好设置的完整性和有效性
     
     Args:
         preferences (Dict[str, Any]): 要验证的模型偏好设置
@@ -148,20 +148,86 @@ def validate_model_preferences(preferences: Dict[str, Any]) -> bool:
     Returns:
         bool: 验证通过返回True，失败返回False
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # 1. 验证输入类型
+    if not isinstance(preferences, dict):
+        logger.warning(f"validate_model_preferences: 输入不是字典类型: {type(preferences)}")
+        return False
+    
     required_fields = ['model_path', 'position', 'scale']
     
-    # 检查必要字段是否存在
+    # 2. 检查必要字段是否存在
     for field in required_fields:
         if field not in preferences:
+            logger.warning(f"validate_model_preferences: 缺少必要字段: {field}")
             return False
     
-    # 检查position和scale是否包含必要的子字段
-    if not isinstance(preferences.get('position'), dict) or 'x' not in preferences['position'] or 'y' not in preferences['position']:
+    # 3. 验证model_path
+    model_path = preferences.get('model_path')
+    if not isinstance(model_path, str) or not model_path.strip():
+        logger.warning(f"validate_model_preferences: model_path无效: {model_path}")
         return False
     
-    if not isinstance(preferences.get('scale'), dict) or 'x' not in preferences['scale'] or 'y' not in preferences['scale']:
+    # 4. 验证position字段
+    position = preferences.get('position')
+    if not isinstance(position, dict):
+        logger.warning(f"validate_model_preferences: position不是字典类型: {type(position)}")
         return False
     
+    if 'x' not in position or 'y' not in position:
+        logger.warning(f"validate_model_preferences: position缺少必要的坐标字段")
+        return False
+    
+    # 验证position的坐标值
+    try:
+        pos_x = float(position['x'])
+        pos_y = float(position['y'])
+        # 可以根据需要添加合理的坐标范围检查
+        if abs(pos_x) > 10000 or abs(pos_y) > 10000:
+            logger.warning(f"validate_model_preferences: position坐标超出合理范围: x={pos_x}, y={pos_y}")
+            return False
+    except (ValueError, TypeError) as e:
+        logger.warning(f"validate_model_preferences: position坐标值无效: {e}")
+        return False
+    
+    # 5. 验证scale字段
+    scale = preferences.get('scale')
+    if not isinstance(scale, dict):
+        logger.warning(f"validate_model_preferences: scale不是字典类型: {type(scale)}")
+        return False
+    
+    if 'x' not in scale or 'y' not in scale:
+        logger.warning(f"validate_model_preferences: scale缺少必要的缩放字段")
+        return False
+    
+    # 验证scale的缩放值
+    try:
+        scale_x = float(scale['x'])
+        scale_y = float(scale['y'])
+        # 确保缩放值在合理范围内（例如非零正数）
+        if scale_x <= 0 or scale_y <= 0 or scale_x > 100 or scale_y > 100:
+            logger.warning(f"validate_model_preferences: scale值超出合理范围: x={scale_x}, y={scale_y}")
+            return False
+    except (ValueError, TypeError) as e:
+        logger.warning(f"validate_model_preferences: scale缩放值无效: {e}")
+        return False
+    
+    # 6. 可选字段的验证
+    if 'rotation' in preferences:
+        rotation = preferences['rotation']
+        try:
+            rot_value = float(rotation)
+            # 确保旋转角度在合理范围内
+            if abs(rot_value) > 360:
+                logger.warning(f"validate_model_preferences: 旋转角度超出合理范围: {rot_value}")
+                return False
+        except (ValueError, TypeError) as e:
+            logger.warning(f"validate_model_preferences: 旋转角度值无效: {e}")
+            return False
+    
+    logger.debug(f"validate_model_preferences: 模型偏好设置验证通过: {model_path}")
     return True
 
 def move_model_to_top(model_path: str) -> bool:

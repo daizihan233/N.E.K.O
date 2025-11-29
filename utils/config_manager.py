@@ -483,17 +483,47 @@ class ConfigManager:
         voice_storage[audio_api_key][voice_id] = voice_data
         self.save_voice_storage(voice_storage)
 
-    def validate_voice_id(self, voice_id):
-        """校验 voice_id 是否在当前 AUDIO_API_KEY 下有效"""
+    def validate_voice_id(self, voice_id: str) -> bool:
+        """
+        验证voice_id的有效性
+        
+        Args:
+            voice_id: 要验证的语音ID
+        
+        Returns:
+            如果voice_id有效则返回True，否则返回False
+        """
+        # 1. 检查是否为字符串类型
+        if not isinstance(voice_id, str):
+            logger.warning(f"validate_voice_id: 无效的voice_id类型: {type(voice_id)}")
+            return False
+        
+        # 2. 检查是否为空字符串
         if not voice_id:
             return True
 
-        # 自动忽略以 "cosyvoice-v2" 开头的旧版音色ID
+        # 3. 验证格式（只允许字母、数字、下划线和连字符）
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', voice_id):
+            logger.warning(f"validate_voice_id: voice_id包含无效字符: {voice_id}")
+            return False
+        
+        # 4. 验证长度
+        if len(voice_id) > 100:
+            logger.warning(f"validate_voice_id: voice_id过长(长度: {len(voice_id)})")
+            return False
+        
+        # 5. 自动忽略以 "cosyvoice-v2" 开头的旧版音色ID
         if voice_id.startswith("cosyvoice-v2"):
             return False
 
+        # 6. 检查是否存在于当前API的音色列表中
         voices = self.get_voices_for_current_api()
-        return voice_id in voices
+        if voice_id in voices:
+            return True
+        
+        logger.warning(f"validate_voice_id: voice_id不存在于当前API的音色列表中: {voice_id}")
+        return False
 
     def cleanup_invalid_voice_ids(self):
         """清理 characters.json 中无效的 voice_id"""

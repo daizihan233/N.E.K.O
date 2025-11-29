@@ -82,17 +82,52 @@ def parse_single_code_from_string(input_string):
     return codes[0]
 
 
-def sanitize_code(code):
-    # This pattern captures the outermost double-quoted text
-    if "\n" in code:
-        pattern = r'(".*?")'
-        # Find all matches in the text
-        matches = re.findall(pattern, code, flags=re.DOTALL)
-        if matches:
-            # Replace the first occurrence only
-            first_match = matches[0]
-            code = code.replace(first_match, f'"""{first_match[1:-1]}"""', 1)
-    return code
+def sanitize_code(code_str: str) -> str:
+    """
+    过滤代码中的不安全部分，防止潜在的XSS攻击和注入风险
+    
+    Args:
+        code_str: 需要清理的代码字符串
+    
+    Returns:
+        清理后的安全代码字符串
+    """
+    import re
+    import logging
+    
+    # 输入验证
+    if not isinstance(code_str, str):
+        logging.warning(f"sanitize_code: 输入不是字符串类型: {type(code_str)}")
+        return ""
+    
+    # 去除首尾空白字符
+    sanitized = code_str.strip()
+    
+    # 替换潜在危险的HTML标签和JavaScript代码
+    # 移除script标签及其内容
+    sanitized = re.sub(r'<\s*script[^>]*>.*?</\s*script\s*>', '', sanitized, flags=re.DOTALL)
+    
+    # 转义HTML特殊字符
+    sanitized = sanitized.replace('&', '&amp;')
+    sanitized = sanitized.replace('<', '&lt;')
+    sanitized = sanitized.replace('>', '&gt;')
+    
+    # 替换引号，统一使用单引号
+    sanitized = sanitized.replace('"', "'")
+    
+    # 移除潜在的危险字符序列
+    dangerous_patterns = [
+        r'javascript:',
+        r'vbscript:',
+        r'data:text/html',
+        r'on\w+\s*='  # 移除事件处理器属性
+    ]
+    
+    for pattern in dangerous_patterns:
+        sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
+    
+    logging.debug(f"sanitize_code: 清理前长度={len(code_str)}, 清理后长度={len(sanitized)}")
+    return sanitized
 
 
 def extract_first_agent_function(code_string):

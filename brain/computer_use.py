@@ -119,8 +119,25 @@ class ComputerUseAdapter:
                 from brain.s2_5.utils.common_utils import call_llm_safe
 
                 def _patched_generate_coords(self, ref_expr: str, obs: Dict) -> list[int]:
+                    """
+                    根据参考表达式在屏幕截图中生成准确的坐标位置
+                    
+                    Args:
+                        ref_expr: 描述要定位的目标的参考表达式，例如按钮名称、菜单项等
+                        obs: 包含当前观察信息的字典，必须包含屏幕截图数据
+                    
+                    Returns:
+                        屏幕上目标位置的像素坐标 [x, y]
+                    
+                    处理流程:
+                    1. 首先尝试使用GLM-4.5V的边界框标记
+                    2. 如果失败，尝试直接解析数值坐标
+                    3. 根据坐标范围转换为适合当前屏幕的实际像素位置
+                    """
+                    # 重置接地模型状态
                     self.grounding_model.reset()
-                    # Prefer GLM-4.5V Grounding box tokens when available
+                    
+                    # 构建提示，优先使用GLM-4.5V接地框标记
                     prompt = (
                         "Locate the referenced target in the screenshot: "
                         f"{ref_expr}\n"
@@ -128,51 +145,89 @@ class ComputerUseAdapter:
                         "Coordinates must be normalized in the range 0..1000 (x is horizontal, y is vertical; top-left to bottom-right).\n"
                         "If a box is not suitable, output exactly two pixel coordinates: x,y. Do not include any explanations or extra text."
                     )
+                    
+                    # 向接地模型添加消息，包含文本提示和屏幕截图
                     self.grounding_model.add_message(
                         text_content=prompt, image_content=obs["screenshot"], put_text_last=True
                     )
+                    
+                    # 安全调用LLM获取响应
                     response = call_llm_safe(self.grounding_model)
                     print("RAW GROUNDING MODEL RESPONSE:", response)
-                    # First, try to parse GLM-4.5V grounding tokens
+                    
+                    # 策略1: 尝试解析GLM-4.5V接地框标记
                     try:
                         box_match = re.search(r"<\|begin_of_box\|>([\s\S]*?)<\|end_of_box\|>", response)
                         if box_match:
+                            # 提取框标记内的内容
                             inner = box_match.group(1)
+                            # 查找所有数字（包括小数和负数）
                             nums = re.findall(r"-?\d+\.?\d*", inner)
                             values = [float(n) for n in nums]
+                            
+                            # 如果找到至少4个值，将其解释为边界框坐标 [x1, y1, x2, y2]
                             if len(values) >= 4:
                                 x1, y1, x2, y2 = values[:4]
-                                # clamp to [0,1000]
+                                
+                                # 定义一个辅助函数将值限制在[0, 1000]范围内
                                 def clamp_0_1000(v: float) -> float:
                                     return 0.0 if v < 0 else 1000.0 if v > 1000 else v
+                                
+                                # 将边界框坐标限制在有效范围内
                                 x1, y1, x2, y2 = map(clamp_0_1000, (x1, y1, x2, y2))
+                                
+                                # 计算边界框的中心点
                                 cx = (x1 + x2) / 2.0
                                 cy = (y1 + y2) / 2.0
+                                
+                                # 获取屏幕尺寸，如果未设置则使用默认值1000
                                 w = getattr(self, "width", None) or 1000
                                 h = getattr(self, "height", None) or 1000
+                                
+                                # 将标准化坐标转换为像素坐标
                                 x_px = int(round(cx / 1000.0 * w))
                                 y_px = int(round(cy / 1000.0 * h))
+                                
                                 return [x_px, y_px]
                     except Exception:
+                        # 如果解析失败，静默继续到下一个策略
                         pass
 
-                    # Fallbacks: parse numericals directly
+                    # 策略2: 直接解析数值坐标
+                    # 提取响应中的所有数字
                     numericals = [int(float(x)) for x in re.findall(r"-?\d+\.?\d*", response)]
+                    
+                    # 情况1: 解析为边界框坐标 [x1, y1, x2, y2]
                     if len(numericals) >= 4:
                         x1, y1, x2, y2 = numericals[:4]
+                        
+                        # 检查坐标是否已经标准化(0-1000范围)
                         if max(x1, y1, x2, y2) <= 1000:
+                            # 获取屏幕尺寸
                             w = getattr(self, "width", None) or 1000
                             h = getattr(self, "height", None) or 1000
+                            
+                            # 计算中心点并转换为像素坐标
                             cx = (x1 + x2) / 2.0
                             cy = (y1 + y2) / 2.0
                             return [int(round(cx / 1000.0 * w)), int(round(cy / 1000.0 * h))]
+                        # 坐标已经是像素值，直接计算中心点
                         return [(x1 + x2) // 2, (y1 + y2) // 2]
+                    
+                    # 断言至少有2个数值可用（x和y坐标）
                     assert len(numericals) >= 2
                     x, y = numericals[0], numericals[1]
+                    
+                    # 情况2: 检查坐标是否已经标准化
                     if x <= 1000 and y <= 1000:
+                        # 获取屏幕尺寸
                         w = getattr(self, "width", None) or 1000
                         h = getattr(self, "height", None) or 1000
+                        
+                        # 将标准化坐标转换为像素坐标
                         return [int(round(x / 1000.0 * w)), int(round(y / 1000.0 * h))]
+                    
+                    # 情况3: 坐标已经是像素值，直接返回
                     return [x, y]
 
                 OSWorldACI.generate_coords = _patched_generate_coords
