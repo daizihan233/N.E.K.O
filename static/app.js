@@ -3832,7 +3832,13 @@ function init_app(){
                     }
                     console.log('[焦点请求] 已展开聊天容器');
                     
-                    // 展开后确保文本输入框获得焦点
+                    // 展开后确保文本输入区域可见且文本框获得焦点
+                    const textInputArea = document.getElementById('text-input-area');
+                    if (textInputArea) {
+                        textInputArea.classList.remove('hidden');
+                        textInputArea.style.display = '';
+                    }
+                    
                     const textInputBox = document.getElementById('textInputBox');
                     if (textInputBox) {
                         textInputBox.focus();
@@ -3841,16 +3847,12 @@ function init_app(){
                         console.warn('[焦点请求] 未找到文本输入框元素');
                     }
                 } else {
-                    // 如果当前是展开状态，则将其最小化
+                    // 如果当前是展开状态，则切换到最小化状态（实现切换功能）
                     chatContainer.classList.add('minimized');
                     console.log('[焦点请求] 已将聊天容器最小化');
                     
-                    // 隐藏文本输入区域（如果在文本模式下）
-                    const textInputArea = document.getElementById('text-input-area');
-                    if (textInputArea && !textInputArea.classList.contains('hidden')) {
-                        textInputArea.classList.add('hidden');
-                        console.log('[焦点请求] 已隐藏文本输入区域');
-                    }
+                    // 不要隐藏文本输入区域，以确保切换时打字框不消失
+                    // 让UI保持一致的可见状态
                 }
             } else {
                 console.warn('[焦点请求] 未找到聊天容器元素');

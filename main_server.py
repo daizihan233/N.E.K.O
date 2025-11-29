@@ -73,9 +73,7 @@ setting_store = None
 recent_log = None
 catgirl_names = []
 
-# 全局快捷键请求队列，用于接收来自hotkey_handler的请求
-import asyncio
-hotkey_request_queue = asyncio.Queue()
+
 
 async def initialize_character_data():
     """初始化或重新加载角色配置数据"""
@@ -227,6 +225,9 @@ if __name__ == '__main__':
         _init_asyncio.set_event_loop(_init_asyncio.new_event_loop())
     _init_asyncio.get_event_loop().run_until_complete(initialize_character_data())
 lock = asyncio.Lock()
+
+# 保存主事件循环引用，供其他模块使用
+main_event_loop = asyncio.get_event_loop()
 
 # --- FastAPI App Setup ---
 app = FastAPI()
@@ -618,6 +619,11 @@ async def update_core_config(request: Request):
 @app.on_event("startup")
 async def startup_event():
     global sync_process
+    # 设置主事件循环引用
+    global main_event_loop
+    main_event_loop = asyncio.get_event_loop()
+    logger.info("主事件循环已设置")
+    
     logger.info("Starting sync connector processes")
     # 启动同步连接器进程（确保所有角色都有进程）
     for k in list(sync_message_queue.keys()):
@@ -667,10 +673,6 @@ async def startup_event():
         t = threading.Thread(target=launch_browser_delayed, daemon=True)
         t.start()
 
-    # 设置快捷键广播回调
-    from utils.hotkey_queue import set_broadcast_callback
-    set_broadcast_callback(broadcast_focus_request)
-
     # 启动快捷键监听器
     try:
         from utils.hotkey_handler import start_hotkey_listener
@@ -679,28 +681,8 @@ async def startup_event():
     except Exception as e:
         logger.error(f"启动快捷键监听器失败: {e}")
 
-    # 启动快捷键请求处理后台任务
-    asyncio.create_task(process_hotkey_requests())
 
-
-# 后台任务：处理快捷键请求
-async def process_hotkey_requests():
-    """处理来自快捷键的请求"""
-    from utils.hotkey_queue import broadcast_focus_request_from_queue
-    logger.info("快捷键请求处理器已启动")
-    while True:
-        try:
-            # 从队列中处理请求
-            success = await broadcast_focus_request_from_queue()
-            if not success:
-                # 队列为空，稍作延迟
-                pass
-        except Exception as e:
-            logger.error(f"处理快捷键请求时出错: {e}")
-            logger.exception(e)  # 添加完整的异常追踪
-            
-        # 等待一下再检查，避免CPU过度使用
-        await asyncio.sleep(0.05)  # 50ms 检查间隔 
+ 
 
 
 @app.on_event("shutdown")
@@ -749,6 +731,7 @@ async def websocket_endpoint(websocket: WebSocket, lanlan_name: str):
     
     # 将WebSocket添加到全局活跃连接集合，以便进行广播
     active_websockets.add(websocket)
+    logger.debug(f"当前活跃WebSocket连接: {active_websockets}")
 
     try:
         while True:
@@ -1103,23 +1086,6 @@ async def broadcast_focus_request(action="focus_and_open_textbox"):
     logger.info(f"session_manager 中的角色: {list(session_manager.keys())}")
     logger.info(f"活跃的WebSocket连接数: {len(active_websockets)}")
     successful_sends = 0
-    for lanlan_name, mgr in session_manager.items():
-        try:
-            # 检查websocket是否可用
-            if mgr.websocket is not None:
-                await mgr.websocket.send_text(json.dumps({
-                    "type": "focus_request",
-                    "action": action
-                }))
-                successful_sends += 1
-                logger.info(f"成功发送焦点请求到 {lanlan_name}")
-            else:
-                logger.debug(f"{lanlan_name} 的WebSocket连接不可用")
-        except Exception as e:
-            logger.debug(f"发送焦点请求到 {lanlan_name} 失败: {e}")  # 改为debug级别避免过多日志
-    
-    # 然后通过全局活跃连接集合发送（这是更可靠的途径，因为所有活跃连接都会在这里）
-    logger.info(f"通过全局活跃连接集合发送焦点请求到 {len(active_websockets)} 个连接")
     for ws in active_websockets.copy():  # 使用副本以避免在迭代时修改集合
         try:
             await ws.send_text(json.dumps({

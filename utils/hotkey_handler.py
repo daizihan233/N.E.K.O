@@ -130,13 +130,7 @@ class HotkeyHandler:
         self.current_pressed_keys.clear()
 
     def open_neko_app(self):
-        """通知前端应用获取焦点并打开文字对话框"""
-        try:
-            asyncio.run(broadcast_focus_request())
-        except Exception as e:
-            logger.error(f"将请求放入队列时失败: {e}")
-            # 如果队列方法失败，回退到HTTP请求
-            self._send_http_request()
+        self._send_http_request()
     
     def _send_http_request(self):
         """回退的HTTP请求方法"""
