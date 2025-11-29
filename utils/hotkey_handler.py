@@ -1,10 +1,13 @@
+import asyncio
 import threading
-import webbrowser
-import sys
+import time
+
+from loguru import logger
 from pynput import keyboard
 from config import MAIN_SERVER_PORT
+from main_server import broadcast_focus_request
 from utils.hotkey_config import get_hotkey_config
-from loguru import logger
+
 
 class HotkeyHandler:
     def __init__(self):
@@ -60,8 +63,6 @@ class HotkeyHandler:
                     str_key = str_key[1:-1]
                 self.current_pressed_keys.add(str_key)
 
-            # 调试日志 - 显示当前按下的所有键
-            logger.debug(f"按键按下: {key}, 当前按键组合: {self.current_pressed_keys}, 期望组合: {self.copilot_key_parts}")
 
             # 检查是否匹配配置的快捷键
             if self.copilot_key_parts.issubset(self.current_pressed_keys):
@@ -120,9 +121,7 @@ class HotkeyHandler:
                 if str_key.startswith("'") and str_key.endswith("'"):
                     str_key = str_key[1:-1]
                 self.current_pressed_keys.discard(str_key)
-            
-            # 调试日志
-            logger.debug(f"按键释放: {key}, 剩余按键: {self.current_pressed_keys}")
+
         except Exception as e:
             logger.error(f"处理按键释放事件时出错: {e}")
 
@@ -133,55 +132,57 @@ class HotkeyHandler:
     def open_neko_app(self):
         """通知前端应用获取焦点并打开文字对话框"""
         try:
-            # 尝试直接调用主服务器的 WebSocket 广播功能，避免 HTTP 请求延迟
-            import asyncio
-            from main_server import broadcast_focus_request
-            
-            logger.info("正在直接发送 WebSocket 焦点请求到前端应用")
-            
-            # 由于 broadcast_focus_request 是异步函数，我们需要在事件循环中运行它
-            # 检查当前线程是否已经有事件循环
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 如果事件循环正在运行（如在 FastAPI 应用中），创建任务
-                    asyncio.create_task(broadcast_focus_request("focus_and_open_textbox"))
-                else:
-                    # 如果事件循环未运行，直接运行函数
-                    loop.run_until_complete(broadcast_focus_request("focus_and_open_textbox"))
-            except RuntimeError:
-                # 如果没有事件循环（如在普通 Python 脚本中），创建一个新的
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                try:
-                    new_loop.run_until_complete(broadcast_focus_request("focus_and_open_textbox"))
-                finally:
-                    new_loop.close()
-                
-        except ImportError:
-            logger.warning("无法导入主服务器广播函数，将使用HTTP请求方式")
-            # 如果无法直接访问广播函数，则使用 HTTP 请求作为备选
-            self._fallback_http_request()
+            asyncio.run(broadcast_focus_request())
         except Exception as e:
-            logger.warning(f"直接发送 WebSocket 消息失败，将使用HTTP请求方式: {e}")
-            logger.exception(e)  # 添加详细异常信息
-            self._fallback_http_request()
+            logger.error(f"将请求放入队列时失败: {e}")
+            # 如果队列方法失败，回退到HTTP请求
+            self._send_http_request()
+    
+    def _send_http_request(self):
+        """回退的HTTP请求方法"""
+        import requests
+        from config import MAIN_SERVER_PORT
+        
+        try:
+            url = f"http://localhost:{MAIN_SERVER_PORT}/api/focus-app"
+            logger.info("正在发送HTTP焦点请求到前端应用（回退方法）")
+            
+            # 发送请求到API端点
+            response = requests.post(
+                url, 
+                json={"action": "focus_and_open_textbox"}, 
+                timeout=0.5  # 很短的超时以减少延迟
+            )
+            
+            if response.status_code == 200:
+                logger.info("✅ 成功发送焦点请求到前端应用")
+            else:
+                logger.warning(f"⚠️ HTTP响应状态码: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"发送焦点请求失败: {e}")
     
     def _fallback_http_request(self):
         """备选的HTTP请求方法"""
         try:
             from config import MAIN_SERVER_PORT
             import requests
+            import time
+            
             url = f"http://localhost:{MAIN_SERVER_PORT}/api/focus-app"
             logger.info(f"正在发送HTTP焦点请求到: {url}")
             
             # 发送一个简单的请求给前端，通知它获取焦点
             # 使用更短的超时时间以提高响应速度
-            response = requests.post(url, json={"action": "focus_and_open_textbox"}, timeout=1)
+            response = requests.post(
+                url, 
+                json={"action": "focus_and_open_textbox"}, 
+                timeout=2  # 增加超时时间，确保请求能完成
+            )
             logger.info(f"HTTP焦点请求响应: {response.status_code}")
             
             if response.status_code == 200:
-                logger.info("✅ 成功发送HTTP焦点请求到前端应用")
+                result = response.json()
+                logger.info(f"✅ 成功发送HTTP焦点请求到前端应用: {result.get('message', 'Unknown result')}")
             else:
                 logger.warning(f"⚠️ HTTP前端响应状态码: {response.status_code}")
                 
@@ -189,6 +190,8 @@ class HotkeyHandler:
             logger.warning("⚠️ 无法连接到主服务器")
         except Exception as e:
             logger.error(f"发送HTTP焦点请求失败: {e}")
+            import traceback
+            logger.debug(f"完整错误信息: {traceback.format_exc()}")
 
     def start_listening(self):
         """开始监听快捷键"""

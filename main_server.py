@@ -12,14 +12,13 @@ from multiprocessing import Process, Queue, Event
 import atexit
 from config import MAIN_SERVER_PORT, MONITOR_SERVER_PORT
 from utils.config_manager import get_config_manager
-from utils.hotkey_handler import start_hotkey_listener
 import sys
 import os
 import asyncio
 import uuid
 
 # 在 Windows 上使用多进程需要添加此检查
-if __name__ == '__main__' or __package__:
+if __name__ == '__main__':
     # 防止在导入时就启动多进程
     pass
 
@@ -73,6 +72,10 @@ time_store = None
 setting_store = None
 recent_log = None
 catgirl_names = []
+
+# 全局快捷键请求队列，用于接收来自hotkey_handler的请求
+import asyncio
+hotkey_request_queue = asyncio.Queue()
 
 async def initialize_character_data():
     """初始化或重新加载角色配置数据"""
@@ -215,12 +218,14 @@ async def initialize_character_data():
     logger.info(f"角色配置加载完成，当前角色: {catgirl_names}，主人: {master_name}")
 
 # 初始化角色数据（使用asyncio.run在模块级别执行async函数）
+# 仅在主模块运行时才初始化，避免在被导入时重复初始化
 import asyncio as _init_asyncio
-try:
-    _init_asyncio.get_event_loop()
-except RuntimeError:
-    _init_asyncio.set_event_loop(_init_asyncio.new_event_loop())
-_init_asyncio.get_event_loop().run_until_complete(initialize_character_data())
+if __name__ == '__main__':
+    try:
+        _init_asyncio.get_event_loop()
+    except RuntimeError:
+        _init_asyncio.set_event_loop(_init_asyncio.new_event_loop())
+    _init_asyncio.get_event_loop().run_until_complete(initialize_character_data())
 lock = asyncio.Lock()
 
 # --- FastAPI App Setup ---
@@ -662,12 +667,40 @@ async def startup_event():
         t = threading.Thread(target=launch_browser_delayed, daemon=True)
         t.start()
 
+    # 设置快捷键广播回调
+    from utils.hotkey_queue import set_broadcast_callback
+    set_broadcast_callback(broadcast_focus_request)
+
     # 启动快捷键监听器
     try:
+        from utils.hotkey_handler import start_hotkey_listener
         start_hotkey_listener()
         logger.info("快捷键监听器已启动")
     except Exception as e:
         logger.error(f"启动快捷键监听器失败: {e}")
+
+    # 启动快捷键请求处理后台任务
+    asyncio.create_task(process_hotkey_requests())
+
+
+# 后台任务：处理快捷键请求
+async def process_hotkey_requests():
+    """处理来自快捷键的请求"""
+    from utils.hotkey_queue import broadcast_focus_request_from_queue
+    logger.info("快捷键请求处理器已启动")
+    while True:
+        try:
+            # 从队列中处理请求
+            success = await broadcast_focus_request_from_queue()
+            if not success:
+                # 队列为空，稍作延迟
+                pass
+        except Exception as e:
+            logger.error(f"处理快捷键请求时出错: {e}")
+            logger.exception(e)  # 添加完整的异常追踪
+            
+        # 等待一下再检查，避免CPU过度使用
+        await asyncio.sleep(0.05)  # 50ms 检查间隔 
 
 
 @app.on_event("shutdown")
@@ -781,25 +814,11 @@ async def focus_app(request: Request):
     """供快捷键服务调用：通知前端应用获取焦点并打开文字对话框"""
     try:
         data = await request.json()
-        action = data.get('action', '')
+        action = data.get('action', 'focus_and_open_textbox')
         
-        if action == 'focus_and_open_textbox':
-            # 向所有连接的客户端发送一个特殊消息，通知它们获取焦点
-            # 使用列表推导式和批量处理来提高性能
-            successful_sends = 0
-            for lanlan_name, mgr in session_manager.items():
-                if mgr.websocket:
-                    try:
-                        await mgr.websocket.send_text(json.dumps({
-                            "type": "focus_request", 
-                            "action": "focus_and_open_textbox"
-                        }))
-                        successful_sends += 1
-                    except Exception as e:
-                        logger.debug(f"发送焦点请求到 {lanlan_name} 失败: {e}")  # 改为debug级别避免过多日志
-            return JSONResponse({"success": True, "message": f"Focus request sent to {successful_sends} clients"})
-        else:
-            return JSONResponse({"success": False, "error": "Invalid action"}, status_code=400)
+        # 使用统一的广播函数
+        successful_sends = await broadcast_focus_request(action)
+        return JSONResponse({"success": True, "message": f"Focus request sent to {successful_sends} clients"})
     except Exception as e:
         logger.error(f"处理焦点请求时出错: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
@@ -1086,31 +1105,34 @@ async def broadcast_focus_request(action="focus_and_open_textbox"):
     successful_sends = 0
     for lanlan_name, mgr in session_manager.items():
         try:
-            await mgr.websocket.send_text(json.dumps({
-                "type": "focus_request",
-                "action": action
-            }))
-            successful_sends += 1
-            logger.info(f"成功发送焦点请求到 {lanlan_name}")
-        except Exception as e:
-            logger.error(f"发送焦点请求到 {lanlan_name} 失败: {e}")  # 改为debug级别避免过多日志
-    
-    # 如果上面没有成功发送，尝试通过全局活跃连接集合发送
-    if successful_sends == 0:
-        logger.info("没有找到指定角色的WebSocket连接，将尝试通过全局活跃连接集合发送")
-        for ws in active_websockets.copy():  # 使用副本以避免在迭代时修改集合
-            try:
-                await ws.send_text(json.dumps({
-                    "type": "focus_request", 
+            # 检查websocket是否可用
+            if mgr.websocket is not None:
+                await mgr.websocket.send_text(json.dumps({
+                    "type": "focus_request",
                     "action": action
                 }))
                 successful_sends += 1
-                logger.info(f"成功发送焦点请求到全局活跃连接")
-            except Exception as e:
-                logger.debug(f"发送焦点请求到全局活跃连接失败: {e}")
-                # 如果连接失败，从活跃连接集合中移除
-                active_websockets.discard(ws)
+                logger.info(f"成功发送焦点请求到 {lanlan_name}")
+            else:
+                logger.debug(f"{lanlan_name} 的WebSocket连接不可用")
+        except Exception as e:
+            logger.debug(f"发送焦点请求到 {lanlan_name} 失败: {e}")  # 改为debug级别避免过多日志
     
+    # 然后通过全局活跃连接集合发送（这是更可靠的途径，因为所有活跃连接都会在这里）
+    logger.info(f"通过全局活跃连接集合发送焦点请求到 {len(active_websockets)} 个连接")
+    for ws in active_websockets.copy():  # 使用副本以避免在迭代时修改集合
+        try:
+            await ws.send_text(json.dumps({
+                "type": "focus_request", 
+                "action": action
+            }))
+            successful_sends += 1
+            logger.info(f"成功发送焦点请求到全局活跃连接")
+        except Exception as e:
+            logger.debug(f"发送焦点请求到全局活跃连接失败: {e}")
+            # 如果连接失败，从活跃连接集合中移除
+            active_websockets.discard(ws)
+
     logger.info(f"焦点请求已发送到 {successful_sends} 个客户端")
     return successful_sends
 
