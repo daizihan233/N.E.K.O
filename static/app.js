@@ -392,6 +392,9 @@ function init_app(){
                         // 显示提示信息
                         showStatusToast(response.message || (window.t ? window.t('app.autoMuteTimeout') : '长时间无语音输入，已自动关闭麦克风'), 4000);
                     }
+                } else if (response.type === 'focus_request') {
+                    // 处理焦点请求，获取窗口焦点并打开文字对话框
+                    handleFocusRequest(response.action);
                 }
             } catch (error) {
                 console.error('处理消息失败:', error);
@@ -3772,6 +3775,99 @@ function init_app(){
         }
         
         console.log('[猫娘切换] 切换完成，已重新连接 WebSocket');
+    }
+    
+    // 处理焦点请求的函数
+    function handleFocusRequest(action) {
+        console.log('[焦点请求] 收到焦点请求，动作:', action);
+        console.log('[焦点请求] 开始处理焦点请求...');
+        
+        try {
+            // 尝试获取窗口焦点（在Electron环境中有效）
+            if (window.focus) {
+                window.focus();
+            }
+            
+            // 尝试将当前窗口带到前台
+            if (window.electronAPI && typeof window.electronAPI.focusWindow === 'function') {
+                window.electronAPI.focusWindow();
+            } else if (window.require) {
+                // 如果有Node.js集成，尝试使用remote模块
+                try {
+                    const { remote } = window.require('electron');
+                    const currentWindow = remote.getCurrentWindow();
+                    currentWindow.focus();
+                    currentWindow.show();
+                } catch (e) {
+                    console.log('[焦点请求] 未检测到Electron环境或require不可用，忽略Electron API调用');
+                }
+            }
+            
+            // 检查聊天容器的状态，实现展开/隐藏切换功能
+            const chatContainer = document.getElementById('chat-container');
+            if (chatContainer) {
+                // 检查容器是否处于最小化或移动端折叠状态
+                const isMinimized = chatContainer.classList.contains('minimized');
+                const isMobileCollapsed = chatContainer.classList.contains('mobile-collapsed');
+                const isCollapsed = isMinimized || isMobileCollapsed;
+                
+                if (isCollapsed) {
+                    // 如果当前是隐藏（最小化）状态，则展开它
+                    if (isMinimized) {
+                        chatContainer.classList.remove('minimized');
+                        console.log('[焦点请求] 已移除桌面端最小化类');
+                    }
+                    if (isMobileCollapsed) {
+                        chatContainer.classList.remove('mobile-collapsed');
+                        // 同时确保内容区与标题可见（在移动端）
+                        const chatContentWrapper = document.getElementById('chat-content-wrapper');
+                        const chatHeader = document.getElementById('chat-header');
+                        if (chatContentWrapper) chatContentWrapper.style.removeProperty('display');
+                        if (chatHeader) chatHeader.style.removeProperty('display');
+                        console.log('[焦点请求] 已移除移动端折叠类并显示内容区域');
+                    }
+                    if (chatContainer.classList.length === 0) {
+                        // 如果没有其他类了，移除class属性避免显示为class=""
+                        chatContainer.removeAttribute('class');
+                    }
+                    console.log('[焦点请求] 已展开聊天容器');
+                    
+                    // 展开后确保文本输入框获得焦点
+                    const textInputBox = document.getElementById('textInputBox');
+                    if (textInputBox) {
+                        textInputBox.focus();
+                        console.log('[焦点请求] 已将焦点设置到文本输入框');
+                    } else {
+                        console.warn('[焦点请求] 未找到文本输入框元素');
+                    }
+                } else {
+                    // 如果当前是展开状态，则将其最小化
+                    chatContainer.classList.add('minimized');
+                    console.log('[焦点请求] 已将聊天容器最小化');
+                    
+                    // 隐藏文本输入区域（如果在文本模式下）
+                    const textInputArea = document.getElementById('text-input-area');
+                    if (textInputArea && !textInputArea.classList.contains('hidden')) {
+                        textInputArea.classList.add('hidden');
+                        console.log('[焦点请求] 已隐藏文本输入区域');
+                    }
+                }
+            } else {
+                console.warn('[焦点请求] 未找到聊天容器元素');
+            }
+            
+            // 检查当前是否处于语音模式
+            if (isRecording) {
+                console.log('[焦点请求] 当前处于语音模式，先切换到文本模式');
+                // 如果正在录音，先停止录音切换到文本模式
+                stopMicCapture();
+            }
+            
+            // 显示状态提示
+            console.log('[焦点请求] 焦点请求处理完成');
+        } catch (error) {
+            console.error('[焦点请求] 处理焦点请求时出错:', error);
+        }
     }
     
     // 确保原生按钮和status栏在初始化时就被强制隐藏，永不出现

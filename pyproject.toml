@@ -35,6 +35,8 @@ dependencies = [
   "pytesseract",
   "pywin32; sys_platform == 'win32'",
   "pywinauto; sys_platform == 'win32'",
+  "pynput",
+  "loguru>=0.7.3",
 ]
 
 

@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="启动整个项目" type="CompoundRunConfigurationType">
+    <toRun name="agent_server" type="PythonConfigurationType" />
+    <toRun name="main_server" type="PythonConfigurationType" />
+    <toRun name="memory_server" type="PythonConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

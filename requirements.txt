@@ -7,13 +7,16 @@ aiohttp==3.12.15
     # via
     #   dashscope
     #   langchain-community
-    #   together
 aiosignal==1.4.0
     # via aiohttp
+altgraph==0.17.4
+    # via
+    #   macholib
+    #   pyinstaller
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.63.0
-    # via gui-agents
+anthropic==0.75.0
+    # via n-e-k-o
 anyio==4.10.0
     # via
     #   anthropic
@@ -22,292 +25,171 @@ anyio==4.10.0
     #   openai
     #   starlette
 attrs==25.3.0
-    # via
-    #   aiohttp
-    #   outcome
-    #   trio
-audioread==3.0.1
-    # via librosa
+    # via aiohttp
 backoff==2.2.1
-    # via gui-agents
-beautifulsoup4==4.13.4
-    # via paddlex
-cachetools==5.5.2
-    # via
-    #   google-auth
-    #   premailer
+    # via n-e-k-o
+cachetools==6.2.2
+    # via google-auth
 certifi==2025.8.3
     # via
     #   httpcore
     #   httpx
     #   requests
-    #   selenium
 cffi==1.17.1
     # via
     #   cryptography
-    #   soundfile
-    #   trio
     #   zstandard
-chardet==5.2.0
-    # via paddlex
 charset-normalizer==3.4.3
     # via requests
 click==8.2.1
-    # via
-    #   together
-    #   typer
-    #   uvicorn
+    # via uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via
     #   click
-    #   colorlog
     #   tqdm
-colorlog==6.9.0
-    # via paddlex
 comtypes==1.4.11 ; sys_platform == 'win32'
     # via pywinauto
 cryptography==45.0.6
     # via dashscope
-cssselect==1.3.0
-    # via premailer
-cssutils==2.11.1
-    # via premailer
 dashscope==1.24.1
-    # via xiao8
+    # via n-e-k-o
 dataclasses-json==0.6.7
     # via langchain-community
-decorator==5.2.1
-    # via
-    #   librosa
-    #   paddlepaddle
 distro==1.9.0
     # via
     #   anthropic
     #   openai
-einops==0.8.1
-    # via paddlex
-et-xmlfile==2.0.0
-    # via openpyxl
-eval-type-backport==0.2.2
-    # via together
+docstring-parser==0.17.0
+    # via anthropic
+evdev==1.9.2 ; 'linux' in sys_platform
+    # via pynput
 fastapi==0.115.14
-    # via
-    #   gui-agents
-    #   xiao8
-filelock==3.18.0
-    # via
-    #   huggingface-hub
-    #   paddlex
-    #   together
+    # via n-e-k-o
 frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
-fsspec==2025.7.0
-    # via huggingface-hub
-ftfy==6.3.1
-    # via paddlex
-google-auth==2.40.3
+google-auth==2.43.0
     # via google-genai
-google-genai==1.29.0
-    # via gui-agents
-gputil==1.4.0
-    # via paddlex
+google-genai==1.52.0
+    # via n-e-k-o
 greenlet==3.2.4 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
     # via sqlalchemy
-gui-agents==0.2.5.post2
-    # via xiao8
 h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
-    #   wsproto
-hf-xet==1.1.7 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
-    # via huggingface-hub
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via
     #   anthropic
     #   google-genai
+    #   langgraph-sdk
     #   langsmith
     #   openai
-    #   paddlepaddle
-httpx-sse==0.4.1
+httpx-sse==0.4.3
     # via langchain-community
-huggingface-hub==0.34.4
-    # via
-    #   paddlex
-    #   tokenizers
 idna==3.10
     # via
     #   anyio
     #   httpx
     #   requests
-    #   trio
     #   yarl
-imagesize==1.4.1
-    # via paddlex
-inflect==7.3.1
-    # via xiao8
 jinja2==3.1.6
-    # via
-    #   paddlex
-    #   xiao8
+    # via n-e-k-o
 jiter==0.10.0
     # via
     #   anthropic
     #   openai
-joblib==1.5.1
-    # via
-    #   librosa
-    #   scikit-learn
 jsonpatch==1.33
     # via langchain-core
 jsonpointer==3.0.0
     # via jsonpatch
-langchain>=1.0.0
-    # via
-    #   langchain-community
-    #   paddlex
-    #   xiao8
-langchain-community>=0.4.0
-    # via
-    #   paddlex
-    #   xiao8
-langchain-core>=1.0.0
+langchain==1.0.0
+    # via n-e-k-o
+langchain-classic==1.0.0
+    # via langchain-community
+langchain-community==0.4
+    # via n-e-k-o
+langchain-core==1.0.0
     # via
     #   langchain
+    #   langchain-classic
     #   langchain-community
     #   langchain-openai
     #   langchain-text-splitters
-    #   paddlex
-langchain-openai>=1.0.0
-    # via
-    #   paddlex
-    #   xiao8
-langchain-text-splitters>=0.3.9
+    #   langgraph
+    #   langgraph-checkpoint
+    #   langgraph-prebuilt
+    #   n-e-k-o
+langchain-openai==1.0.1
+    # via n-e-k-o
+langchain-text-splitters==1.0.0
+    # via langchain-classic
+langgraph==1.0.4
     # via langchain
+langgraph-checkpoint==3.0.1
+    # via
+    #   langgraph
+    #   langgraph-prebuilt
+langgraph-prebuilt==1.0.5
+    # via langgraph
+langgraph-sdk==0.2.10
+    # via langgraph
 langsmith==0.4.13
     # via
-    #   langchain
+    #   langchain-classic
     #   langchain-community
     #   langchain-core
-lazy-loader==0.4
-    # via librosa
-librosa==0.10.2.post1
-    # via xiao8
-llvmlite==0.44.0
-    # via numba
-lxml==6.0.0
-    # via
-    #   paddlex
-    #   premailer
-markdown-it-py==4.0.0
-    # via rich
+macholib==1.16.3 ; sys_platform == 'darwin'
+    # via pyinstaller
 markupsafe==3.0.2
     # via jinja2
 marshmallow==3.26.1
     # via dataclasses-json
-mdurl==0.1.2
-    # via markdown-it-py
-more-itertools==10.7.0
-    # via
-    #   cssutils
-    #   inflect
 mouseinfo==0.1.3
     # via pyautogui
-msgpack==1.1.1
-    # via librosa
 multidict==6.6.4
     # via
     #   aiohttp
     #   yarl
 mypy-extensions==1.1.0
     # via typing-inspect
-networkx==3.5
-    # via paddlepaddle
-numba==0.61.2
-    # via librosa
 numpy==1.26.4
     # via
-    #   gui-agents
     #   langchain-community
-    #   librosa
-    #   numba
-    #   opencv-contrib-python
-    #   opt-einsum
-    #   paddlepaddle
-    #   paddlex
-    #   pandas
-    #   scikit-learn
-    #   scipy
-    #   shapely
-    #   soundfile
+    #   n-e-k-o
     #   soxr
-    #   together
-    #   xiao8
-openai==1.99.9
+openai==2.8.1
     # via
-    #   gui-agents
     #   langchain-openai
-    #   paddlex
-opencv-contrib-python==4.10.0.84
-    # via paddlex
-openpyxl==3.1.5
-    # via paddlex
-opt-einsum==3.3.0
-    # via paddlepaddle
-orjson==3.11.2 ; platform_python_implementation != 'PyPy'
-    # via langsmith
-outcome==1.3.0.post0
+    #   n-e-k-o
+orjson==3.11.2
     # via
-    #   trio
-    #   trio-websocket
+    #   langgraph-sdk
+    #   langsmith
+ormsgpack==1.12.0
+    # via langgraph-checkpoint
 packaging==25.0
     # via
-    #   huggingface-hub
     #   langchain-core
     #   langsmith
-    #   lazy-loader
     #   marshmallow
-    #   paddlex
-    #   pooch
+    #   pyinstaller
+    #   pyinstaller-hooks-contrib
     #   pytesseract
-paddleocr==3.1.0
-    # via gui-agents
-paddlepaddle==3.1.0
-    # via gui-agents
-paddlex==3.1.3
-    # via paddleocr
-pandas==2.3.1
-    # via
-    #   gui-agents
-    #   paddlex
+pefile==2023.2.7 ; sys_platform == 'win32'
+    # via pyinstaller
 pillow==11.3.0
     # via
-    #   paddlepaddle
-    #   paddlex
+    #   n-e-k-o
     #   pyscreeze
     #   pytesseract
-    #   together
-    #   xiao8
-platformdirs==4.3.8
-    # via pooch
-pooch==1.8.2
-    # via librosa
-premailer==3.10.0
-    # via paddlex
-prettytable==3.16.0
-    # via paddlex
 propcache==0.3.2
     # via
     #   aiohttp
     #   yarl
-protobuf==6.31.1
-    # via paddlepaddle
-py-cpuinfo==9.0.0
-    # via paddlex
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
@@ -315,13 +197,9 @@ pyasn1==0.6.1
 pyasn1-modules==0.4.2
     # via google-auth
 pyaudio==0.2.14
-    # via xiao8
+    # via n-e-k-o
 pyautogui==0.9.54
-    # via
-    #   gui-agents
-    #   xiao8
-pyclipper==1.3.0.post6
-    # via paddlex
+    # via n-e-k-o
 pycparser==2.22
     # via cffi
 pydantic==2.11.7
@@ -330,24 +208,28 @@ pydantic==2.11.7
     #   fastapi
     #   google-genai
     #   langchain
+    #   langchain-classic
     #   langchain-core
+    #   langgraph
     #   langsmith
     #   openai
-    #   paddlex
     #   pydantic-settings
-    #   together
 pydantic-core==2.33.2
     # via pydantic
-pydantic-settings==2.10.1
+pydantic-settings==2.12.0
     # via langchain-community
 pygetwindow==0.0.9
     # via pyautogui
-pygments==2.19.2
-    # via rich
+pyinstaller==6.16.0
+    # via n-e-k-o
+pyinstaller-hooks-contrib==2025.9
+    # via pyinstaller
 pymsgbox==1.0.9
     # via pyautogui
+pynput==1.8.1
+    # via n-e-k-o
 pyobjc==11.1 ; sys_platform == 'darwin'
-    # via gui-agents
+    # via n-e-k-o
 pyobjc-core==11.1 ; sys_platform == 'darwin'
     # via
     #   pyautogui
@@ -526,7 +408,9 @@ pyobjc-framework-applescriptkit==11.1 ; sys_platform == 'darwin'
 pyobjc-framework-applescriptobjc==11.1 ; platform_release >= '10.0' and sys_platform == 'darwin'
     # via pyobjc
 pyobjc-framework-applicationservices==11.1 ; sys_platform == 'darwin'
-    # via pyobjc
+    # via
+    #   pynput
+    #   pyobjc
 pyobjc-framework-apptrackingtransparency==11.1 ; platform_release >= '20.0' and sys_platform == 'darwin'
     # via pyobjc
 pyobjc-framework-audiovideobridging==11.1 ; platform_release >= '12.0' and sys_platform == 'darwin'
@@ -949,6 +833,7 @@ pyobjc-framework-pushkit==11.1 ; platform_release >= '19.0' and sys_platform == 
 pyobjc-framework-quartz==11.1 ; sys_platform == 'darwin'
     # via
     #   pyautogui
+    #   pynput
     #   pyobjc
     #   pyobjc-framework-accessibility
     #   pyobjc-framework-applicationservices
@@ -1055,173 +940,103 @@ pyobjc-framework-vision==11.1 ; platform_release >= '17.0' and sys_platform == '
     # via pyobjc
 pyobjc-framework-webkit==11.1 ; sys_platform == 'darwin'
     # via pyobjc
-pypdfium2==4.30.0
-    # via paddlex
 pyperclip==1.9.0
     # via mouseinfo
 pyrect==0.2.0
     # via pygetwindow
 pyscreeze==1.0.1
     # via pyautogui
-pysocks==1.7.1
-    # via urllib3
 pytesseract==0.3.13
-    # via gui-agents
-python-dateutil==2.9.0.post0
-    # via pandas
-python-dotenv==1.1.1
+    # via n-e-k-o
+python-dotenv==1.2.1
     # via pydantic-settings
 python-multipart==0.0.20
-    # via xiao8
+    # via n-e-k-o
+python-xlib==0.33 ; 'linux' in sys_platform
+    # via
+    #   pynput
+    #   pywinauto
 python3-xlib==0.15 ; sys_platform == 'linux'
     # via
     #   mouseinfo
     #   pyautogui
 pytweening==1.2.0
     # via pyautogui
-pytz==2025.2
-    # via pandas
 pywin32==311 ; sys_platform == 'win32'
     # via
-    #   gui-agents
+    #   n-e-k-o
     #   pywinauto
+pywin32-ctypes==0.2.3 ; sys_platform == 'win32'
+    # via pyinstaller
 pywinauto==0.6.9 ; sys_platform == 'win32'
-    # via gui-agents
+    # via n-e-k-o
 pyyaml==6.0.2
     # via
-    #   huggingface-hub
-    #   langchain
+    #   langchain-classic
     #   langchain-community
     #   langchain-core
-    #   paddleocr
-    #   paddlex
 regex==2025.7.34
-    # via
-    #   paddlex
-    #   tiktoken
-requests==2.32.4
+    # via tiktoken
+requests==2.32.5
     # via
     #   dashscope
     #   google-genai
-    #   huggingface-hub
-    #   langchain
+    #   langchain-classic
     #   langchain-community
     #   langsmith
-    #   paddlex
-    #   pooch
-    #   premailer
     #   requests-toolbelt
     #   tiktoken
-    #   together
 requests-toolbelt==1.0.0
     # via langsmith
-rich==14.1.0
-    # via
-    #   together
-    #   typer
 rsa==4.9.1
     # via google-auth
-ruamel-yaml==0.18.14
-    # via paddlex
-ruamel-yaml-clib==0.2.12 ; platform_python_implementation == 'CPython'
-    # via ruamel-yaml
 rubicon-objc==0.5.2 ; sys_platform == 'darwin'
     # via mouseinfo
-scikit-learn==1.7.1
+setuptools==80.9.0
     # via
-    #   gui-agents
-    #   librosa
-    #   paddlex
-scipy==1.16.1
-    # via
-    #   librosa
-    #   scikit-learn
-selenium==4.35.0
-    # via gui-agents
-shapely==2.1.1
-    # via paddlex
-shellingham==1.5.4
-    # via typer
+    #   pyinstaller
+    #   pyinstaller-hooks-contrib
 six==1.17.0
     # via
-    #   python-dateutil
+    #   pynput
+    #   python-xlib
     #   pywinauto
 sniffio==1.3.1
     # via
     #   anthropic
     #   anyio
     #   openai
-    #   trio
-sortedcontainers==2.4.0
-    # via trio
-soundfile==0.13.1
-    # via librosa
-soupsieve==2.7
-    # via beautifulsoup4
 soxr==0.5.0.post1
-    # via librosa
-sqlalchemy==2.0.43
+    # via n-e-k-o
+sqlalchemy==2.0.44
     # via
-    #   langchain
+    #   langchain-classic
     #   langchain-community
 starlette==0.46.2
     # via fastapi
-tabulate==0.9.0
-    # via together
 tenacity==9.1.2
     # via
     #   google-genai
     #   langchain-community
     #   langchain-core
-threadpoolctl==3.6.0
-    # via scikit-learn
 tiktoken==0.11.0
-    # via
-    #   gui-agents
-    #   langchain-openai
-    #   paddlex
-together==1.5.24
-    # via gui-agents
-tokenizers==0.21.4
-    # via paddlex
+    # via langchain-openai
 toml==0.10.2
-    # via gui-agents
+    # via n-e-k-o
 tqdm==4.67.1
-    # via
-    #   huggingface-hub
-    #   openai
-    #   together
-trio==0.30.0
-    # via
-    #   selenium
-    #   trio-websocket
-trio-websocket==0.12.2
-    # via selenium
-typeguard==4.4.4
-    # via inflect
-typer==0.15.3
-    # via together
+    # via openai
 typing-extensions==4.14.1
     # via
     #   aiosignal
     #   anthropic
     #   anyio
-    #   beautifulsoup4
     #   fastapi
     #   google-genai
-    #   huggingface-hub
     #   langchain-core
-    #   librosa
     #   openai
-    #   paddleocr
-    #   paddlepaddle
-    #   paddlex
     #   pydantic
     #   pydantic-core
-    #   selenium
     #   sqlalchemy
-    #   typeguard
-    #   typer
     #   typing-inspect
     #   typing-inspection
 typing-inspect==0.9.0
@@ -1230,32 +1045,20 @@ typing-inspection==0.4.1
     # via
     #   pydantic
     #   pydantic-settings
-tzdata==2025.2
-    # via pandas
-ujson==5.10.0
-    # via paddlex
 urllib3==2.5.0
-    # via
-    #   requests
-    #   selenium
-uvicorn==0.35.0
-    # via gui-agents
-wcwidth==0.2.13
-    # via
-    #   ftfy
-    #   prettytable
+    # via requests
+uvicorn==0.38.0
+    # via n-e-k-o
 websocket-client==1.8.0
     # via
     #   dashscope
-    #   selenium
-    #   xiao8
+    #   n-e-k-o
 websockets==15.0.1
     # via
     #   google-genai
-    #   gui-agents
-    #   xiao8
-wsproto==1.2.0
-    # via trio-websocket
+    #   n-e-k-o
+xxhash==3.6.0
+    # via langgraph
 yarl==1.20.1
     # via aiohttp
 zstandard==0.23.0
