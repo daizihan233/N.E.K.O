@@ -765,12 +765,6 @@ async def admin_control(payload: Dict[str, Any]):
 if __name__ == "__main__":
     import uvicorn
     
-    # 使用统一的速率限制日志过滤器
-    from utils.logger_config import create_agent_server_filter
-    
-    # Add filter to uvicorn access logger
-    logging.getLogger("uvicorn.access").addFilter(create_agent_server_filter())
-    
     uvicorn.run(app, host="0.0.0.0", port=TOOL_SERVER_PORT)
 
 

@@ -1,15 +1,5 @@
-# -*- coding: utf-8 -*-
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import mimetypes
-mimetypes.add_type("application/javascript", ".js")
-import asyncio
-import json
-import uuid
-import logging
 import webbrowser
+import json
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +13,10 @@ import atexit
 from config import MAIN_SERVER_PORT, MONITOR_SERVER_PORT
 from utils.config_manager import get_config_manager
 from utils.hotkey_handler import start_hotkey_listener
+import sys
+import os
+import asyncio
+import uuid
 
 # 在 Windows 上使用多进程需要添加此检查
 if __name__ == '__main__' or __package__:
@@ -44,10 +38,8 @@ else:
 
 templates = Jinja2Templates(directory=template_dir)
 
-# Configure logging
-from utils.logger_config import setup_logging
-
-logger, log_config = setup_logging(service_name="Main", log_level=logging.INFO)
+# Configure logging with loguru
+from loguru import logger
 
 _config_manager = get_config_manager()
 

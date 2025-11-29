@@ -1,14 +1,10 @@
 import threading
 import webbrowser
-import logging
 import sys
-import requests
 from pynput import keyboard
 from config import MAIN_SERVER_PORT
-from utils.logger_config import setup_logging
 from utils.hotkey_config import get_hotkey_config
-
-logger, log_config = setup_logging(service_name="Hotkey", log_level=logging.INFO)
+from loguru import logger
 
 class HotkeyHandler:
     def __init__(self):
